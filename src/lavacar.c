@@ -5,11 +5,15 @@
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
+#include <semaphore.h>
 #ifdef WIN32
 #include "pthread.h"
 #else
 #include <pthread.h>
 #endif
+
+pthread_mutex_t lock;
+sem_t sem;
 
 void *funcionario(void *arg);
 void *loja(void *arg);
@@ -86,6 +90,10 @@ int main()
 
   char *ptr_char = "thread 2";
 
+  // iniciar o semaforo deixando 2 threads acessar a região crítica
+  sem_init(&sem, 0, 2);
+  pthread_mutex_init(&lock, NULL);
+
   if (pthread_create(&thid1, NULL, funcionario, "thread 1") != 0)
     perror("pthread_create() error");
 
@@ -98,6 +106,9 @@ int main()
   if (pthread_join(thid2, NULL) != 0)
     exit(3);
 
+  pthread_mutex_destroy(&lock);
+  sem_destroy(&sem);
+
   pthread_exit(NULL);
 }
 
@@ -108,13 +119,15 @@ void *funcionario(void *arg)
     if (front != NULL)
     {
       printf("lavando carro do cliente: %d \n", front->data);
-      sleep(8);
-      // checa mutex e aguarda
-      // coloca mutex em 1
+      sleep(8);      
+      printf("lavagem cliente: %d, terminada indo para o próximo\n", front->data);
+
+      sem_wait(&sem);
+      pthread_mutex_lock(&lock);
       Dequeue();
       num_vagas++;
-      // coloca mutex em 0
-      printf("lavagem cliente: %d, terminada indo para o próximo\n", front->data);
+      pthread_mutex_unlock(&lock);
+      sem_post(&sem);
     }
     else
     {
@@ -131,9 +144,13 @@ void *loja(void *arg)
   {
     if (num_vagas > 0)
     {
+      sem_wait(&sem);
+      pthread_mutex_lock(&lock);
       printf("cliente %i entrou na fila para lavagem\n", i);      
       Enqueue(i);
       num_vagas--;
+      pthread_mutex_unlock(&lock);
+      sem_post(&sem);
     }
     else
     {
