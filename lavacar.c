@@ -1,4 +1,4 @@
-// gcc -pthread -o mythreads mythreads.c && ./mythreads
+// gcc -pthread -o lavacar lavacar.c && ./lavacar
 
 #include <pthread.h>
 #include <stdlib.h>
